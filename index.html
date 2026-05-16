@@ -164,26 +164,55 @@
             border-radius: 4px;
         }
 
-        /* Dynamic Digital Traffic Label UI */
-        .traffic-label {
-            background: rgba(11, 15, 25, 0.85);
-            border: 1px solid #00e5ff;
+        /* -------------------------------------------
+           NEW: Marker & Text Styles (No Border Box) 
+           ------------------------------------------- */
+        .custom-sensor-icon {
+            background: transparent;
+            border: none;
+        }
+        .sensor-marker {
+            display: flex;
+            align-items: center;
+            gap: 6px; /* ระยะห่างระหว่างจุดกับตัวเลข */
+        }
+        .sensor-dot {
+            width: 12px;
+            height: 12px;
+            background-color: #00e5ff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00e5ff;
+            flex-shrink: 0;
+        }
+        .sensor-text {
             color: #00e5ff;
             font-family: 'Chakra Petch', sans-serif;
-            font-weight: bold;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
             white-space: nowrap;
-            box-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
-            transition: all 0.3s ease;
+            /* ตัดขอบดำให้ตัวหนังสือ เพื่อให้อ่านง่ายบนพื้นสว่างและมืด */
+            text-shadow: 
+                -1px -1px 0 #0b0f19,  
+                 1px -1px 0 #0b0f19,
+                -1px  1px 0 #0b0f19,
+                 1px  1px 0 #0b0f19,
+                 0 0 10px #00e5ff;
         }
         
-        .traffic-label.heavy {
-            border-color: #ff3d00;
+        /* สไตล์เวลาจราจรหนาแน่น (เปลี่ยนเป็นสีแดง) */
+        .sensor-marker.heavy .sensor-dot {
+            background-color: #ff3d00;
+            box-shadow: 0 0 10px #ff3d00;
+        }
+        .sensor-marker.heavy .sensor-text {
             color: #ff3d00;
-            box-shadow: 0 0 10px rgba(255, 61, 0, 0.8);
+            text-shadow: 
+                -1px -1px 0 #0b0f19,  
+                 1px -1px 0 #0b0f19,
+                -1px  1px 0 #0b0f19,
+                 1px  1px 0 #0b0f19,
+                 0 0 10px #ff3d00;
         }
 
         /* Custom Scrollbar */
@@ -212,7 +241,7 @@
     <div id="map-container">
         <div id="map"></div>
         <div class="time-panel">
-            <h2>Simulation Time</h2>
+            <h2>ช่วงเวลา</h2>
             <div class="clock" id="clock-display">00:00</div>
         </div>
     </div>
@@ -303,7 +332,7 @@
         attribution: '&copy; TomTom'
     }).addTo(map);
 
-    // ปรับรัศมี Heatmap ให้กว้างขึ้น (radius: 65, blur: 45)
+    // Heatmap (รัศมีกว้าง)
     let heatLayer = L.heatLayer([], {
         radius: 65, 
         blur: 45, 
@@ -314,15 +343,21 @@
     const liveMarkers = [];
     const sensorLayerGroup = L.layerGroup();
     
+    // สร้างหมุดเริ่มต้น
     trafficData.forEach((item, index) => {
         let routeName = item['เส้นทาง'] || item['text'];
         
-        // ปรับ Anchor ให้เยื้องขวา เพื่อไม่ให้บังจุดพิกัดกึ่งกลาง (offset: [-15, 11])
+        // ใช้โครงสร้าง HTML ใหม่: มีวงกลม (dot) และข้อความ (text)
         const customIcon = L.divIcon({
-            className: `traffic-label label-id-${index}`,
-            html: `${item['คัน/ชั่วโมง'].toLocaleString()} คัน`,
-            iconSize: [75, 22],
-            iconAnchor: [-15, 11]
+            className: 'custom-sensor-icon',
+            html: `
+                <div class="sensor-marker">
+                    <div class="sensor-dot"></div>
+                    <div class="sensor-text">${item['คัน/ชั่วโมง'].toLocaleString()} คัน</div>
+                </div>
+            `,
+            iconSize: [100, 20],
+            iconAnchor: [6, 6] // จุดยึดแผนที่คือ กึ่งกลางของจุดวงกลม (ขนาด 12x12)
         });
 
         const marker = L.marker([item.Lat, item.Lag], { icon: customIcon });
@@ -378,6 +413,7 @@
     function updateSimulation(hour) {
         const multiplier = hourlyMultipliers[hour];
         
+        // Update Heatmap
         const heatData = trafficData.map(item => {
             let intensity = (item['คัน/ชั่วโมง'] * multiplier) / 10000; 
             if (intensity > 1) intensity = 1; 
@@ -385,24 +421,28 @@
         });
         heatLayer.setLatLngs(heatData);
 
+        // Update Text and Dots
         liveMarkers.forEach(liveItem => {
             const currentTraffic = Math.round(liveItem.baseHourlyCount * multiplier);
             
-            let trafficClass = "traffic-label";
-            if (multiplier >= 1.7) { 
-                trafficClass += " heavy"; 
-            }
+            // ใส่ class 'heavy' ถ้าปริมาณรถมากเกินระดับที่กำหนด
+            let trafficClass = multiplier >= 1.7 ? "heavy" : "";
 
-            // Update Icon properties with the offset
             const updatedIcon = L.divIcon({
-                className: trafficClass,
-                html: `${currentTraffic.toLocaleString()} คัน`,
-                iconSize: [75, 22],
-                iconAnchor: [-15, 11]
+                className: 'custom-sensor-icon',
+                html: `
+                    <div class="sensor-marker ${trafficClass}">
+                        <div class="sensor-dot"></div>
+                        <div class="sensor-text">${currentTraffic.toLocaleString()} คัน</div>
+                    </div>
+                `,
+                iconSize: [100, 20],
+                iconAnchor: [6, 6] // คงจุดยึดไว้ที่กึ่งกลางวงกลม
             });
             
             liveItem.markerObject.setIcon(updatedIcon);
 
+            // Update Popup text
             if(liveItem.markerObject.isPopupOpen()) {
                 const livePopupValEl = document.getElementById(`popup-live-val-${liveItem.index}`);
                 if(livePopupValEl) {
@@ -411,6 +451,7 @@
             }
         });
 
+        // Update Clock Display
         const displayHour = hour.toString().padStart(2, '0') + ":00";
         document.getElementById('clock-display').innerText = displayHour;
     }
