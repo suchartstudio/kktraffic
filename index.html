@@ -164,9 +164,7 @@
             border-radius: 4px;
         }
 
-        /* -------------------------------------------
-           NEW: Marker & Text Styles (No Border Box) 
-           ------------------------------------------- */
+        /* Marker & Text Styles */
         .custom-sensor-icon {
             background: transparent;
             border: none;
@@ -174,7 +172,7 @@
         .sensor-marker {
             display: flex;
             align-items: center;
-            gap: 6px; /* ระยะห่างระหว่างจุดกับตัวเลข */
+            gap: 6px; 
         }
         .sensor-dot {
             width: 12px;
@@ -191,7 +189,6 @@
             font-weight: 700;
             font-size: 13px;
             white-space: nowrap;
-            /* ตัดขอบดำให้ตัวหนังสือ เพื่อให้อ่านง่ายบนพื้นสว่างและมืด */
             text-shadow: 
                 -1px -1px 0 #0b0f19,  
                  1px -1px 0 #0b0f19,
@@ -200,7 +197,7 @@
                  0 0 10px #00e5ff;
         }
         
-        /* สไตล์เวลาจราจรหนาแน่น (เปลี่ยนเป็นสีแดง) */
+        /* สไตล์เวลาจราจรหนาแน่น */
         .sensor-marker.heavy .sensor-dot {
             background-color: #ff3d00;
             box-shadow: 0 0 10px #ff3d00;
@@ -332,7 +329,7 @@
         attribution: '&copy; TomTom'
     }).addTo(map);
 
-    // Heatmap (รัศมีกว้าง)
+    // Heatmap
     let heatLayer = L.heatLayer([], {
         radius: 65, 
         blur: 45, 
@@ -347,7 +344,6 @@
     trafficData.forEach((item, index) => {
         let routeName = item['เส้นทาง'] || item['text'];
         
-        // ใช้โครงสร้าง HTML ใหม่: มีวงกลม (dot) และข้อความ (text)
         const customIcon = L.divIcon({
             className: 'custom-sensor-icon',
             html: `
@@ -357,7 +353,7 @@
                 </div>
             `,
             iconSize: [100, 20],
-            iconAnchor: [6, 6] // จุดยึดแผนที่คือ กึ่งกลางของจุดวงกลม (ขนาด 12x12)
+            iconAnchor: [6, 6] 
         });
 
         const marker = L.marker([item.Lat, item.Lag], { icon: customIcon });
@@ -398,8 +394,9 @@
     L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
 
     // ==========================================
-    // 4. Animation Setup
+    // 4. Animation Setup (ทีละ 15 นาที)
     // ==========================================
+    // ตัวคูณความหนาแน่นรายชั่วโมง (0-23)
     const hourlyMultipliers = [
         0.15, 0.08, 0.05, 0.1, 0.25, 
         0.55, 1.25, 1.85, 1.55, 1.05,   
@@ -408,10 +405,18 @@
         0.85, 0.65, 0.45, 0.25         
     ];
 
-    let currentHour = 0;
+    let currentMinutes = 0; // เดินทีละนาทีตั้งแต่ 0 ถึง 1439 (24 ชั่วโมง * 60 นาที)
 
-    function updateSimulation(hour) {
-        const multiplier = hourlyMultipliers[hour];
+    function updateSimulation(minutes) {
+        // คำนวณชั่วโมงปัจจุบัน และชั่วโมงถัดไป
+        const hour = Math.floor(minutes / 60);
+        const nextHour = (hour + 1) % 24;
+        
+        // คำนวณเศษส่วนของนาทีในชั่วโมงนั้น (0.0 ถึง 0.99)
+        const fraction = (minutes % 60) / 60;
+        
+        // Linear Interpolation: แทรกค่าเชิงเส้นเพื่อเปลี่ยนผ่านตัวคูณอย่างนุ่มนวล
+        const multiplier = (hourlyMultipliers[hour] * (1 - fraction)) + (hourlyMultipliers[nextHour] * fraction);
         
         // Update Heatmap
         const heatData = trafficData.map(item => {
@@ -437,7 +442,7 @@
                     </div>
                 `,
                 iconSize: [100, 20],
-                iconAnchor: [6, 6] // คงจุดยึดไว้ที่กึ่งกลางวงกลม
+                iconAnchor: [6, 6] 
             });
             
             liveItem.markerObject.setIcon(updatedIcon);
@@ -451,18 +456,21 @@
             }
         });
 
-        // Update Clock Display
-        const displayHour = hour.toString().padStart(2, '0') + ":00";
-        document.getElementById('clock-display').innerText = displayHour;
+        // Update Clock Display (ฟอร์แมต 00:00)
+        const displayHour = hour.toString().padStart(2, '0');
+        const displayMinute = (minutes % 60).toString().padStart(2, '0');
+        document.getElementById('clock-display').innerText = `${displayHour}:${displayMinute}`;
     }
 
+    // ทำงานทุกๆ 1 วินาที (เปลี่ยนเวลาไปครั้งละ 15 นาที ในโลกจำลอง)
     setInterval(() => {
-        updateSimulation(currentHour);
-        currentHour++;
-        if (currentHour > 23) currentHour = 0;
-    }, 1500);
+        updateSimulation(currentMinutes);
+        currentMinutes += 15; 
+        if (currentMinutes >= 1440) currentMinutes = 0; // รีเซ็ตเมื่อครบ 24 ชม.
+    }, 1000);
 
-    updateSimulation(currentHour);
+    // รันค่าเริ่มต้นตอนโหลดหน้าแรก
+    updateSimulation(currentMinutes);
 
 </script>
 </body>
