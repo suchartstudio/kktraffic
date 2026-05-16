@@ -78,6 +78,39 @@
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
         }
 
+        /* NEW: Chart Panel Overlay */
+        #chart-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+            width: 320px;
+            height: 220px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chart-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+
         /* Sidebar table */
         #sidebar {
             width: 650px;
@@ -150,7 +183,7 @@
             color: var(--accent);
         }
 
-        /* Custom Layer Control */
+        /* Layer Control */
         .leaflet-control-layers {
             background: rgba(16, 24, 39, 0.9) !important;
             color: var(--text-main) !important;
@@ -197,7 +230,6 @@
                  0 0 10px #00e5ff;
         }
         
-        /* สไตล์เวลาจราจรหนาแน่น */
         .sensor-marker.heavy .sensor-dot {
             background-color: #ff3d00;
             box-shadow: 0 0 10px #ff3d00;
@@ -212,12 +244,10 @@
                  0 0 10px #ff3d00;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 
-        /* Custom Leaflet Popup */
         .leaflet-popup-content-wrapper {
             background: rgba(16, 24, 39, 0.95);
             color: #fff;
@@ -237,15 +267,24 @@
 <div id="dashboard">
     <div id="map-container">
         <div id="map"></div>
+        
         <div class="time-panel">
             <h2>ช่วงเวลา</h2>
             <div class="clock" id="clock-display">00:00</div>
         </div>
+
+        <div id="chart-panel">
+            <h3>ประเภทรถ</h3>
+            <div class="chart-container">
+                <canvas id="vehicleChart"></canvas>
+            </div>
+        </div>
     </div>
+    
     <div id="sidebar">
         <div class="header">
             <h1>🚦 Khon Kaen Traffic Data</h1>
-            <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem;">ปริมาณรถยนต์เฉลี่ยในเขตเมืองขอนแก่น ทำการวัดด้วยการติดตั้งกล้อง CCTV โดยใช้ AI นับจำนวนรถ แยกประเภทรถ เมื่อช่วงเดือน กุมภาพันธ์-มีนาคม 2569 โดย สมาคมผู้บริโภคขอนแก่น กับสุชาติ กับ อจ.ต้า</p>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem;">ปริมาณรถยนต์เฉลี่ยในเขตเมืองขอนแก่น ทำการวัดด้วยการติดตั้งกล้อง CCTV โดยใช้ AI นับจำนวน/แยกประเภทรถ เมื่อช่วงเดือน กุมภาพันธ์-มีนาคม 2569 โดย สมาคมผู้บริโภคขอนแก่น กับ สุชาติ กับ อจ.ต้า</p>
         </div>
         <div class="table-container">
             <table>
@@ -268,10 +307,26 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     // Data from Excel
     const trafficData = [{"ที่": 1, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาดจอมพล", "Lat": 16.449866, "Lag": 102.841688, "Car": 53772, "Motorcycle": 42496, "Truck": 14374, "รวมต่อวัน": 160892, "คัน/ชั่วโมง": 8298}, {"ที่": 2, "เส้นทาง": "ถ.ศรีจันทร์ - หนองโคตร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงตลาดคำไฮ", "Lat": 16.43463, "Lag": 102.808361, "Car": 50787, "Motorcycle": 40663, "Truck": 7569, "รวมต่อวัน": 143990, "คัน/ชั่วโมง": 7426}, {"ที่": 3, "เส้นทาง": "ถ.กลางเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าสถานีตำรวจ ถึงแยกกัลยา", "Lat": 16.428851, "Lag": 102.835475, "Car": 41072, "Motorcycle": 47205, "Truck": 10637, "รวมต่อวัน": 143837, "คัน/ชั่วโมง": 7419}, {"ที่": 4, "เส้นทาง": "ถ.ศรีจันทร์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเซ็นทรัล ถึงแยกศาลหลักเมือง", "Lat": 16.431822, "Lag": 102.825975, "Car": 60082, "Motorcycle": 20824, "Truck": 16019, "รวมต่อวัน": 140945, "คัน/ชั่วโมง": 7269}, {"ที่": 5, "เส้นทาง": "ถ.รื่นรมย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บางจาก ถึง แยกโต้รุ่ง", "Lat": 16.425617, "Lag": 102.834928, "Car": 50713, "Motorcycle": 34075, "Truck": 10681, "รวมต่อวัน": 138828, "คัน/ชั่วโมง": 7160}, {"ที่": 6, "เส้นทาง": "ถ.กัลปพฤกษ์(บาดาล)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกมิตรภาพ ถึงวัดอดุลย์", "Lat": 16.464666, "Lag": 102.827545, "Car": 52398, "Motorcycle": 25950, "Truck": 12047, "รวมต่อวัน": 131449, "คัน/ชั่วโมง": 6780}, {"ที่": 7, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศเหนือ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตั้งแต่ประตูมอดินแดง ถึง ปตท.ปรีดาปาร์ก", "Lat": 16.457312, "Lag": 102.831468, "Car": 66220, "Motorcycle": 14952, "Truck": 8590, "รวมต่อวัน": 130529, "คัน/ชั่วโมง": 6732}, {"ที่": 8, "เส้นทาง": "ถ.หน้าเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตลาดบางลำภู ถึงแยกรื่นรมย์", "Lat": 16.426513, "Lag": 102.833409, "Car": 44699, "Motorcycle": 29618, "Truck": 12940, "รวมต่อวัน": 126886, "คัน/ชั่วโมง": 6544}, {"ที่": 9, "เส้นทาง": "ถ.มิตรภาพ ช่วงกลาง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "สีแยกบ้านกอก มอ ภาค", "Lat": 16.421229, "Lag": 102.820347, "Car": 40042, "Motorcycle": 27542, "Truck": 14074, "รวมต่อวัน": 118744, "คัน/ชั่วโมง": 6124}, {"ที่": 10, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศใต้", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บ้านกุดกว้าง", "Lat": 16.375165, "Lag": 102.810162, "Car": 48381, "Motorcycle": 4188, "Truck": 19043, "รวมต่อวัน": 104136, "คัน/ชั่วโมง": 5371}, {"ที่": 11, "text": "ถ.ประชาสโมสร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าที่ว่าการอำเภอ ถึงแยกเทพารักษ์ (สะพานลอย บขส เก่า)", "Lat": 16.43904, "Lag": 102.832973, "Car": 35992, "Motorcycle": 22810, "Truck": 11875, "รวมต่อวัน": 102776, "คัน/ชั่วโมง": 5301}, {"ที่": 12, "เส้นทาง": "ถ.มอดินแดง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเจ้าพ่อมอ ถึงสามแยก", "Lat": 16.470959, "Lag": 102.832293, "Car": 57256, "Motorcycle": 1667, "Truck": 7905, "รวมต่อวัน": 97179, "คัน/ชั่วโมง": 5012}, {"ที่": 13, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้า ค่ายศรีพัชรินทร", "Lat": 16.462267, "Lag": 102.846619, "Car": 33664, "Motorcycle": 21564, "Truck": 7506, "รวมต่อวัน": 91226, "คัน/ชั่วโมง": 4705}, {"ที่": 14, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแหอวน ถึงแยกบ้านสะอาด", "Lat": 16.406603, "Lag": 102.787367, "Car": 33690, "Motorcycle": 21292, "Truck": 5776, "รวมต่อวัน": 88352, "คัน/ชั่วโมง": 4557}, {"ที่": 15, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแก่นนคร ถึงสนามกีฬา", "Lat": 16.414228, "Lag": 102.82732, "Car": 25760, "Motorcycle": 27406, "Truck": 5156, "รวมต่อวัน": 84810, "คัน/ชั่วโมง": 4374}, {"ที่": 16, "เส้นทาง": "ถ.ชาตะผดุง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้ามหาไถ่", "Lat": 16.424407, "Lag": 102.850672, "Car": 20781, "Motorcycle": 26539, "Truck": 6235, "รวมต่อวัน": 77878, "คัน/ชั่วโมง": 4017}, {"ที่": 17, "เส้นทาง": "ถ.บ้านกอก", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ถนนบ้านกอก หน้า มอ.ภาค", "Lat": 16.421278, "Lag": 102.811769, "Car": 18968, "Motorcycle": 26533, "Truck": 6181, "รวมต่อวัน": 75154, "คัน/ชั่วโมง": 3876}, {"ที่": 18, "เส้นทาง": "ถ.โนนม่วง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้านอร์ทปาร์ค", "Lat": 16.488596, "Lag": 102.827887, "Car": 21298, "Motorcycle": 21999, "Truck": 3648, "รวมต่อวัน": 68266, "คัน/ชั่วโมง": 3521}, {"ที่": 19, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาด 62 block", "Lat": 16.457244, "Lag": 102.821138, "Car": 24278, "Motorcycle": 16076, "Truck": 4224, "รวมต่อวัน": 64824, "คัน/ชั่วโมง": 3343}, {"ที่": 20, "text": "ถ.เฉลิมพระเกียรติ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "โกโฮลเซล ถึงแยกศรีจันทร์", "Lat": 16.435614, "Lag": 102.84325, "Car": 21328, "Motorcycle": 14555, "Truck": 7262, "รวมต่อวัน": 62740, "คัน/ชั่วโมง": 3236}, {"ที่": 21, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยก BMW ถึงขอนแก่นราม (ปตท กัลปพฤกษ์)", "Lat": 16.437817, "Lag": 102.819208, "Car": 20756, "Motorcycle": 18074, "Truck": 3970, "รวมต่อวัน": 62238, "คัน/ชั่วโมง": 3210}, {"ที่": 22, "เส้นทาง": "ถ.หนองไผ่ (โตโยต้าชัวร์)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "เจวิลลเลจ หน้า โตโยต้าชัวร์", "Lat": 16.487613, "Lag": 102.833818, "Car": 22264, "Motorcycle": 12938, "Truck": 6829, "รวมต่อวัน": 61120, "คัน/ชั่วโมง": 3152}, {"ที่": 23, "เส้นทาง": "ถ.หลังเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แถวๆ ชัยมหา", "Lat": 16.430903, "Lag": 102.837651, "Car": 21833, "Motorcycle": 11609, "Truck": 4161, "รวมต่อวัน": 54681, "คัน/ชั่วโมง": 2820}, {"ที่": 24, "เส้นทาง": "ถ.มะลิวัลย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงแยก ร.8 ถึง ปตท.สีฐาน (โรงเรียนคนตาบอด)", "Lat": 16.444218, "Lag": 102.797482, "Car": 25243, "Motorcycle": 9310, "Truck": 2681, "รวมต่อวัน": 54144, "คัน/ชั่วโมง": 2793}, {"ที่": 25, "เส้นทาง": "ถ.สีหราชเดโชชัย", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกไฟแดง ถึงหน้าหมู่บ้านแก่นทอง", "Lat": 16.447893, "Lag": 102.794365, "Car": 18913, "Motorcycle": 14150, "Truck": 3672, "รวมต่อวัน": 53419, "คัน/ชั่วโมง": 2755}];
+
+    // คำนวณปริมาณรถแต่ละประเภทแบบ Base (รวมทุกจุด)
+    let baseTotalCar = 0;
+    let baseTotalMotorcycle = 0;
+    let baseTotalTruck = 0;
+
+    trafficData.forEach(item => {
+        // หาอัตราส่วนของรถแต่ละประเภทจากผลรวมทั้ง 3 ชนิด
+        const totalItems = item.Car + item.Motorcycle + item.Truck;
+        const hourlyRate = item['คัน/ชั่วโมง'];
+        
+        baseTotalCar += hourlyRate * (item.Car / totalItems);
+        baseTotalMotorcycle += hourlyRate * (item.Motorcycle / totalItems);
+        baseTotalTruck += hourlyRate * (item.Truck / totalItems);
+    });
 
     // Populate Sidebar Table
     const tbody = document.getElementById('table-body');
@@ -292,55 +347,40 @@
         tbody.appendChild(tr);
     });
 
-    // Initialize Map centered on Khon Kaen
+    // Initialize Map
     const map = L.map('map', {
         center: [16.4322, 102.8236], 
         zoom: 13,
         zoomControl: true
     });
 
-    // ==========================================
-    // 1. Base Maps
-    // ==========================================
+    // Base Maps
     const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 19
+        attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19
     }).addTo(map);
 
     const lightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
     });
 
     const satTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '&copy; Esri &mdash; Source: Esri...',
-        maxZoom: 19
+        attribution: '&copy; Esri', maxZoom: 19
     });
 
-    // ==========================================
-    // 2. Overlays
-    // ==========================================
+    // Overlays
     const tomtomApiKey = '8oHwI99AzpDA013yabYCuqOfZ4ffAW6t';
     const tomtomTrafficTiles = L.tileLayer(`https://{s}.api.tomtom.com/traffic/map/4/tile/flow/absolute/{z}/{x}/{y}.png?key=${tomtomApiKey}`, {
-        subdomains: ['a', 'b', 'c', 'd'],
-        maxZoom: 18,
-        opacity: 0.8,
-        attribution: '&copy; TomTom'
+        subdomains: ['a', 'b', 'c', 'd'], maxZoom: 18, opacity: 0.8
     }).addTo(map);
 
-    // Heatmap
     let heatLayer = L.heatLayer([], {
-        radius: 65, 
-        blur: 45, 
-        maxZoom: 14,
+        radius: 65, blur: 45, maxZoom: 14,
         gradient: {0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
     }).addTo(map);
 
     const liveMarkers = [];
     const sensorLayerGroup = L.layerGroup();
     
-    // สร้างหมุดเริ่มต้น
     trafficData.forEach((item, index) => {
         let routeName = item['เส้นทาง'] || item['text'];
         
@@ -376,27 +416,71 @@
     });
     sensorLayerGroup.addTo(map);
 
-    // ==========================================
-    // 3. Layer Control
-    // ==========================================
-    const baseMaps = {
+    // Layer Control
+    L.control.layers({
         "🗺️ Dark Mode (มืด)": darkTiles,
         "🗺️ Light Mode (สว่าง)": lightTiles,
         "🌍 Satellite (ดาวเทียม)": satTiles
-    };
-    
-    const overlayMaps = {
+    }, {
         "🔴 TomTom Live Traffic": tomtomTrafficTiles,
         "🔥 Simulated Heatmap (24h)": heatLayer,
         "🔢 Live Traffic Numbers": sensorLayerGroup
-    };
+    }, { collapsed: false, position: 'topright' }).addTo(map);
 
-    L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
 
     // ==========================================
-    // 4. Animation Setup (ทีละ 15 นาที)
+    // NEW: Initialize Chart.js
     // ==========================================
-    // ตัวคูณความหนาแน่นรายชั่วโมง (0-23)
+    const ctx = document.getElementById('vehicleChart').getContext('2d');
+    const vehicleChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['รถยนต์', 'จยย.', 'รถบรรทุก'],
+            datasets: [{
+                label: 'ปริมาณปัจจุบัน (คัน/ชม.)',
+                data: [0, 0, 0],
+                backgroundColor: [
+                    'rgba(0, 229, 255, 0.8)', // Cyan for Cars
+                    'rgba(249, 115, 22, 0.8)', // Orange for Motorcycle
+                    'rgba(234, 179, 8, 0.8)'   // Yellow for Trucks
+                ],
+                borderColor: [
+                    '#00e5ff',
+                    '#f97316',
+                    '#eab308'
+                ],
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    titleFont: { family: "'Chakra Petch', sans-serif" },
+                    bodyFont: { family: "'Chakra Petch', sans-serif" }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 229, 255, 0.15)', drawBorder: false },
+                    ticks: { color: '#7dd3fc', font: { family: "'Chakra Petch', sans-serif" }, maxTicksLimit: 5 }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#e0f2fe', font: { family: "'Chakra Petch', sans-serif", size: 13 } }
+                }
+            },
+            animation: { duration: 800 } // Smooth bar transitions
+        }
+    });
+
+    // ==========================================
+    // Animation Setup (ทีละ 15 นาที)
+    // ==========================================
     const hourlyMultipliers = [
         0.15, 0.08, 0.05, 0.1, 0.25, 
         0.55, 1.25, 1.85, 1.55, 1.05,   
@@ -405,20 +489,16 @@
         0.85, 0.65, 0.45, 0.25         
     ];
 
-    let currentMinutes = 0; // เดินทีละนาทีตั้งแต่ 0 ถึง 1439 (24 ชั่วโมง * 60 นาที)
+    let currentMinutes = 0; 
 
     function updateSimulation(minutes) {
-        // คำนวณชั่วโมงปัจจุบัน และชั่วโมงถัดไป
         const hour = Math.floor(minutes / 60);
         const nextHour = (hour + 1) % 24;
-        
-        // คำนวณเศษส่วนของนาทีในชั่วโมงนั้น (0.0 ถึง 0.99)
         const fraction = (minutes % 60) / 60;
         
-        // Linear Interpolation: แทรกค่าเชิงเส้นเพื่อเปลี่ยนผ่านตัวคูณอย่างนุ่มนวล
         const multiplier = (hourlyMultipliers[hour] * (1 - fraction)) + (hourlyMultipliers[nextHour] * fraction);
         
-        // Update Heatmap
+        // 1. Update Heatmap
         const heatData = trafficData.map(item => {
             let intensity = (item['คัน/ชั่วโมง'] * multiplier) / 10000; 
             if (intensity > 1) intensity = 1; 
@@ -426,11 +506,9 @@
         });
         heatLayer.setLatLngs(heatData);
 
-        // Update Text and Dots
+        // 2. Update Map Markers
         liveMarkers.forEach(liveItem => {
             const currentTraffic = Math.round(liveItem.baseHourlyCount * multiplier);
-            
-            // ใส่ class 'heavy' ถ้าปริมาณรถมากเกินระดับที่กำหนด
             let trafficClass = multiplier >= 1.7 ? "heavy" : "";
 
             const updatedIcon = L.divIcon({
@@ -447,7 +525,6 @@
             
             liveItem.markerObject.setIcon(updatedIcon);
 
-            // Update Popup text
             if(liveItem.markerObject.isPopupOpen()) {
                 const livePopupValEl = document.getElementById(`popup-live-val-${liveItem.index}`);
                 if(livePopupValEl) {
@@ -456,20 +533,26 @@
             }
         });
 
-        // Update Clock Display (ฟอร์แมต 00:00)
+        // 3. Update Chart
+        const currentCar = Math.round(baseTotalCar * multiplier);
+        const currentMotorcycle = Math.round(baseTotalMotorcycle * multiplier);
+        const currentTruck = Math.round(baseTotalTruck * multiplier);
+
+        vehicleChart.data.datasets[0].data = [currentCar, currentMotorcycle, currentTruck];
+        vehicleChart.update();
+
+        // 4. Update Clock
         const displayHour = hour.toString().padStart(2, '0');
         const displayMinute = (minutes % 60).toString().padStart(2, '0');
         document.getElementById('clock-display').innerText = `${displayHour}:${displayMinute}`;
     }
 
-    // ทำงานทุกๆ 1 วินาที (เปลี่ยนเวลาไปครั้งละ 15 นาที ในโลกจำลอง)
     setInterval(() => {
         updateSimulation(currentMinutes);
         currentMinutes += 15; 
-        if (currentMinutes >= 1440) currentMinutes = 0; // รีเซ็ตเมื่อครบ 24 ชม.
+        if (currentMinutes >= 1440) currentMinutes = 0; 
     }, 1000);
 
-    // รันค่าเริ่มต้นตอนโหลดหน้าแรก
     updateSimulation(currentMinutes);
 
 </script>
