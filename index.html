@@ -46,7 +46,7 @@
         #map {
             width: 100%;
             height: 100%;
-            background-color: #0b0f19; /* dark fallback */
+            background-color: #0b0f19;
         }
 
         /* overlay panel on the map */
@@ -78,9 +78,9 @@
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
         }
 
-        /* Sidebar table */
+        /* Sidebar table - Expanded to 550px for full view */
         #sidebar {
-            width: 450px;
+            width: 550px;
             height: 100%;
             background: var(--panel-bg);
             border-left: 2px solid var(--border-color);
@@ -88,6 +88,7 @@
             flex-direction: column;
             box-shadow: -5px 0 20px rgba(0,0,0,0.5);
             z-index: 1000;
+            flex-shrink: 0; /* Prevent sidebar from squeezing */
         }
 
         .header {
@@ -112,38 +113,56 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            table-layout: fixed; /* Fix column widths to prevent overflowing */
         }
 
+        /* Fixed column widths allocation */
+        th:nth-child(1), td:nth-child(1) { width: 45px; text-align: center; } /* ลำดับ */
+        th:nth-child(2), td:nth-child(2) { width: 195px; text-align: left; }   /* เส้นทาง/สถานที่ */
+        th:nth-child(3), td:nth-child(3) { width: 85px; text-align: right; }  /* รวมต่อวัน */
+        th:nth-child(4), td:nth-child(4) { width: 75px; text-align: right; }  /* รถยนต์ */
+        th:nth-child(5), td:nth-child(5) { width: 75px; text-align: right; }  /* จยย. */
+        th:nth-child(6), td:nth-child(6) { width: 75px; text-align: right; }  /* บรรทุก */
+
         th {
-            background-color: rgba(0, 229, 255, 0.1);
+            background-color: rgba(0, 229, 255, 0.15);
             color: var(--border-color);
-            padding: 10px;
-            text-align: center;
+            padding: 12px 6px;
             position: sticky;
             top: 0;
-            z-index: 1;
+            z-index: 2;
             backdrop-filter: blur(5px);
+            border-bottom: 1px solid var(--border-color);
         }
 
         td {
-            padding: 10px;
-            border-bottom: 1px solid rgba(0, 229, 255, 0.2);
-            text-align: right;
-        }
-        
-        td:nth-child(2) {
-            text-align: left;
+            padding: 10px 6px;
+            border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+            word-wrap: break-word; /* Wrap text neatly inside cells */
         }
 
         tr:hover {
-            background-color: rgba(0, 229, 255, 0.05);
+            background-color: rgba(0, 229, 255, 0.08);
         }
 
         .rank {
             font-weight: bold;
             color: var(--accent);
-            text-align: center !important;
+        }
+
+        /* Custom Layer Control to fit Smart City Theme */
+        .leaflet-control-layers {
+            background: rgba(16, 24, 39, 0.9) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color) !important;
+            font-family: 'Chakra Petch', sans-serif !important;
+            border-radius: 6px !important;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.2) !important;
+        }
+        .leaflet-control-layers-toggle {
+            background-color: rgba(16, 24, 39, 0.9) !important;
+            border-radius: 4px;
         }
 
         /* Custom Scrollbar */
@@ -153,11 +172,12 @@
 
         /* Custom Leaflet Popup */
         .leaflet-popup-content-wrapper {
-            background: rgba(16, 24, 39, 0.9);
+            background: rgba(16, 24, 39, 0.95);
             color: #fff;
             border: 1px solid var(--border-color);
             font-family: 'Chakra Petch', sans-serif;
             border-radius: 4px;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
         }
         .leaflet-popup-tip { background: var(--border-color); }
         .popup-title { color: var(--border-color); font-weight: bold; margin-bottom: 5px; font-size: 1.1rem; }
@@ -185,8 +205,8 @@
                 <thead>
                     <tr>
                         <th>ลำดับ</th>
-                        <th>สถานที่</th>
-                        <th>รถรวม/วัน</th>
+                        <th>สถานที่ / เส้นทาง</th>
+                        <th>รวม/วัน</th>
                         <th>รถยนต์</th>
                         <th>จยย.</th>
                         <th>บรรทุก</th>
@@ -203,18 +223,19 @@
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 <script>
-    // Data from Excel (JSON format)
-    const trafficData = [{"ที่": 1, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาดจอมพล", "Lat": 16.449866, "Lag": 102.841688, "Car": 53772, "Motorcycle": 42496, "Truck": 14374, "รวมต่อวัน": 160892, "คัน/ชั่วโมง": 8298}, {"ที่": 2, "เส้นทาง": "ถ.ศรีจันทร์ - หนองโคตร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงตลาดคำไฮ", "Lat": 16.43463, "Lag": 102.808361, "Car": 50787, "Motorcycle": 40663, "Truck": 7569, "รวมต่อวัน": 143990, "คัน/ชั่วโมง": 7426}, {"ที่": 3, "เส้นทาง": "ถ.กลางเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าสถานีตำรวจ ถึงแยกกัลยา", "Lat": 16.428851, "Lag": 102.835475, "Car": 41072, "Motorcycle": 47205, "Truck": 10637, "รวมต่อวัน": 143837, "คัน/ชั่วโมง": 7419}, {"ที่": 4, "เส้นทาง": "ถ.ศรีจันทร์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเซ็นทรัล ถึงแยกศาลหลักเมือง", "Lat": 16.431822, "Lag": 102.825975, "Car": 60082, "Motorcycle": 20824, "Truck": 16019, "รวมต่อวัน": 140945, "คัน/ชั่วโมง": 7269}, {"ที่": 5, "เส้นทาง": "ถ.รื่นรมย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บางจาก ถึง แยกโต้รุ่ง", "Lat": 16.425617, "Lag": 102.834928, "Car": 50713, "Motorcycle": 34075, "Truck": 10681, "รวมต่อวัน": 138828, "คัน/ชั่วโมง": 7160}, {"ที่": 6, "เส้นทาง": "ถ.กัลปพฤกษ์(บาดาล)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกมิตรภาพ ถึงวัดอดุลย์", "Lat": 16.464666, "Lag": 102.827545, "Car": 52398, "Motorcycle": 25950, "Truck": 12047, "รวมต่อวัน": 131449, "คัน/ชั่วโมง": 6780}, {"ที่": 7, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศเหนือ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตั้งแต่ประตูมอดินแดง ถึง ปตท.ปรีดาปาร์ก", "Lat": 16.457312, "Lag": 102.831468, "Car": 66220, "Motorcycle": 14952, "Truck": 8590, "รวมต่อวัน": 130529, "คัน/ชั่วโมง": 6732}, {"ที่": 8, "เส้นทาง": "ถ.หน้าเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตลาดบางลำภู ถึงแยกรื่นรมย์", "Lat": 16.426513, "Lag": 102.833409, "Car": 44699, "Motorcycle": 29618, "Truck": 12940, "รวมต่อวัน": 126886, "คัน/ชั่วโมง": 6544}, {"ที่": 9, "เส้นทาง": "ถ.มิตรภาพ ช่วงกลาง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "สีแยกบ้านกอก มอ ภาค", "Lat": 16.421229, "Lag": 102.820347, "Car": 40042, "Motorcycle": 27542, "Truck": 14074, "รวมต่อวัน": 118744, "คัน/ชั่วโมง": 6124}, {"ที่": 10, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศใต้", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บ้านกุดกว้าง", "Lat": 16.375165, "Lag": 102.810162, "Car": 48381, "Motorcycle": 4188, "Truck": 19043, "รวมต่อวัน": 104136, "คัน/ชั่วโมง": 5371}, {"ที่": 11, "เส้นทาง": "ถ.ประชาสโมสร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าที่ว่าการอำเภอ ถึงแยกเทพารักษ์ (สะพานลอย บขส เก่า)", "Lat": 16.43904, "Lag": 102.832973, "Car": 35992, "Motorcycle": 22810, "Truck": 11875, "รวมต่อวัน": 102776, "คัน/ชั่วโมง": 5301}, {"ที่": 12, "เส้นทาง": "ถ.มอดินแดง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเจ้าพ่อมอ ถึงสามแยก", "Lat": 16.470959, "Lag": 102.832293, "Car": 57256, "Motorcycle": 1667, "Truck": 7905, "รวมต่อวัน": 97179, "คัน/ชั่วโมง": 5012}, {"ที่": 13, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้า ค่ายศรีพัชรินทร", "Lat": 16.462267, "Lag": 102.846619, "Car": 33664, "Motorcycle": 21564, "Truck": 7506, "รวมต่อวัน": 91226, "คัน/ชั่วโมง": 4705}, {"ที่": 14, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแหอวน ถึงแยกบ้านสะอาด", "Lat": 16.406603, "Lag": 102.787367, "Car": 33690, "Motorcycle": 21292, "Truck": 5776, "รวมต่อวัน": 88352, "คัน/ชั่วโมง": 4557}, {"ที่": 15, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแก่นนคร ถึงสนามกีฬา", "Lat": 16.414228, "Lag": 102.82732, "Car": 25760, "Motorcycle": 27406, "Truck": 5156, "รวมต่อวัน": 84810, "คัน/ชั่วโมง": 4374}, {"ที่": 16, "เส้นทาง": "ถ.ชาตะผดุง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้ามหาไถ่", "Lat": 16.424407, "Lag": 102.850672, "Car": 20781, "Motorcycle": 26539, "Truck": 6235, "รวมต่อวัน": 77878, "คัน/ชั่วโมง": 4017}, {"ที่": 17, "เส้นทาง": "ถ.บ้านกอก", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ถนนบ้านกอก หน้า มอ.ภาค", "Lat": 16.421278, "Lag": 102.811769, "Car": 18968, "Motorcycle": 26533, "Truck": 6181, "รวมต่อวัน": 75154, "คัน/ชั่วโมง": 3876}, {"ที่": 18, "เส้นทาง": "ถ.โนนม่วง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้านอร์ทปาร์ค", "Lat": 16.488596, "Lag": 102.827887, "Car": 21298, "Motorcycle": 21999, "Truck": 3648, "รวมต่อวัน": 68266, "คัน/ชั่วโมง": 3521}, {"ที่": 19, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาด 62 block", "Lat": 16.457244, "Lag": 102.821138, "Car": 24278, "Motorcycle": 16076, "Truck": 4224, "รวมต่อวัน": 64824, "คัน/ชั่วโมง": 3343}, {"ที่": 20, "เส้นทาง": "ถ.เฉลิมพระเกียรติ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "โกโฮลเซล ถึงแยกศรีจันทร์", "Lat": 16.435614, "Lag": 102.84325, "Car": 21328, "Motorcycle": 14555, "Truck": 7262, "รวมต่อวัน": 62740, "คัน/ชั่วโมง": 3236}, {"ที่": 21, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยก BMW ถึงขอนแก่นราม (ปตท กัลปพฤกษ์)", "Lat": 16.437817, "Lag": 102.819208, "Car": 20756, "Motorcycle": 18074, "Truck": 3970, "รวมต่อวัน": 62238, "คัน/ชั่วโมง": 3210}, {"ที่": 22, "เส้นทาง": "ถ.หนองไผ่ (โตโยต้าชัวร์)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "เจวิลลเลจ หน้า โตโยต้าชัวร์", "Lat": 16.487613, "Lag": 102.833818, "Car": 22264, "Motorcycle": 12938, "Truck": 6829, "รวมต่อวัน": 61120, "คัน/ชั่วโมง": 3152}, {"ที่": 23, "เส้นทาง": "ถ.หลังเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แถวๆ ชัยมหา", "Lat": 16.430903, "Lag": 102.837651, "Car": 21833, "Motorcycle": 11609, "Truck": 4161, "รวมต่อวัน": 54681, "คัน/ชั่วโมง": 2820}, {"ที่": 24, "เส้นทาง": "ถ.มะลิวัลย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงแยก ร.8 ถึง ปตท.สีฐาน (โรงเรียนคนตาบอด)", "Lat": 16.444218, "Lag": 102.797482, "Car": 25243, "Motorcycle": 9310, "Truck": 2681, "รวมต่อวัน": 54144, "คัน/ชั่วโมง": 2793}, {"ที่": 25, "เส้นทาง": "ถ.สีหราชเดโชชัย", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกไฟแดง ถึงหน้าหมู่บ้านแก่นทอง", "Lat": 16.447893, "Lag": 102.794365, "Car": 18913, "Motorcycle": 14150, "Truck": 3672, "รวมต่อวัน": 53419, "คัน/ชั่วโมง": 2755}];
+    // Data from Excel
+    const trafficData = [{"ที่": 1, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาดจอมพล", "Lat": 16.449866, "Lag": 102.841688, "Car": 53772, "Motorcycle": 42496, "Truck": 14374, "รวมต่อวัน": 160892, "คัน/ชั่วโมง": 8298}, {"ที่": 2, "เส้นทาง": "ถ.ศรีจันทร์ - หนองโคตร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงตลาดคำไฮ", "Lat": 16.43463, "Lag": 102.808361, "Car": 50787, "Motorcycle": 40663, "Truck": 7569, "รวมต่อวัน": 143990, "คัน/ชั่วโมง": 7426}, {"ที่": 3, "เส้นทาง": "ถ.กลางเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าสถานีตำรวจ ถึงแยกกัลยา", "Lat": 16.428851, "Lag": 102.835475, "Car": 41072, "Motorcycle": 47205, "Truck": 10637, "รวมต่อวัน": 143837, "คัน/ชั่วโมง": 7419}, {"ที่": 4, "เส้นทาง": "ถ.ศรีจันทร์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเซ็นทรัล ถึงแยกศาลหลักเมือง", "Lat": 16.431822, "Lag": 102.825975, "Car": 60082, "Motorcycle": 20824, "Truck": 16019, "รวมต่อวัน": 140945, "คัน/ชั่วโมง": 7269}, {"ที่": 5, "เส้นทาง": "ถ.รื่นรมย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บางจาก ถึง แยกโต้รุ่ง", "Lat": 16.425617, "Lag": 102.834928, "Car": 50713, "Motorcycle": 34075, "Truck": 10681, "รวมต่อวัน": 138828, "คัน/ชั่วโมง": 7160}, {"ที่": 6, "เส้นทาง": "ถ.กัลปพฤกษ์(บาดาล)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกมิตรภาพ ถึงวัดอดุลย์", "Lat": 16.464666, "Lag": 102.827545, "Car": 52398, "Motorcycle": 25950, "Truck": 12047, "รวมต่อวัน": 131449, "คัน/ชั่วโมง": 6780}, {"ที่": 7, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศเหนือ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตั้งแต่ประตูมอดินแดง ถึง ปตท.ปรีดาปาร์ก", "Lat": 16.457312, "Lag": 102.831468, "Car": 66220, "Motorcycle": 14952, "Truck": 8590, "รวมต่อวัน": 130529, "คัน/ชั่วโมง": 6732}, {"ที่": 8, "เส้นทาง": "ถ.หน้าเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ตลาดบางลำภู ถึงแยกรื่นรมย์", "Lat": 16.426513, "Lag": 102.833409, "Car": 44699, "Motorcycle": 29618, "Truck": 12940, "รวมต่อวัน": 126886, "คัน/ชั่วโมง": 6544}, {"ที่": 9, "เส้นทาง": "ถ.มิตรภาพ ช่วงกลาง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "สีแยกบ้านกอก มอ ภาค", "Lat": 16.421229, "Lag": 102.820347, "Car": 40042, "Motorcycle": 27542, "Truck": 14074, "รวมต่อวัน": 118744, "คัน/ชั่วโมง": 6124}, {"ที่": 10, "เส้นทาง": "ถ.มิตรภาพ ช่วงทิศใต้", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "บ้านกุดกว้าง", "Lat": 16.375165, "Lag": 102.810162, "Car": 48381, "Motorcycle": 4188, "Truck": 19043, "รวมต่อวัน": 104136, "คัน/ชั่วโมง": 5371}, {"ที่": 11, "text": "ถ.ประชาสโมสร", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าที่ว่าการอำเภอ ถึงแยกเทพารักษ์ (สะพานลอย บขส เก่า)", "Lat": 16.43904, "Lag": 102.832973, "Car": 35992, "Motorcycle": 22810, "Truck": 11875, "รวมต่อวัน": 102776, "คัน/ชั่วโมง": 5301}, {"ที่": 12, "เส้นทาง": "ถ.มอดินแดง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกเจ้าพ่อมอ ถึงสามแยก", "Lat": 16.470959, "Lag": 102.832293, "Car": 57256, "Motorcycle": 1667, "Truck": 7905, "รวมต่อวัน": 97179, "คัน/ชั่วโมง": 5012}, {"ที่": 13, "เส้นทาง": "ถ.กสิกรทุ่งสร้าง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้า ค่ายศรีพัชรินทร", "Lat": 16.462267, "Lag": 102.846619, "Car": 33664, "Motorcycle": 21564, "Truck": 7506, "รวมต่อวัน": 91226, "คัน/ชั่วโมง": 4705}, {"ที่": 14, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแหอวน ถึงแยกบ้านสะอาด", "Lat": 16.406603, "Lag": 102.787367, "Car": 33690, "Motorcycle": 21292, "Truck": 5776, "รวมต่อวัน": 88352, "คัน/ชั่วโมง": 4557}, {"ที่": 15, "เส้นทาง": "ถ.เหล่านาดี", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าแก่นนคร ถึงสนามกีฬา", "Lat": 16.414228, "Lag": 102.82732, "Car": 25760, "Motorcycle": 27406, "Truck": 5156, "รวมต่อวัน": 84810, "คัน/ชั่วโมง": 4374}, {"ที่": 16, "เส้นทาง": "ถ.ชาตะผดุง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้ามหาไถ่", "Lat": 16.424407, "Lag": 102.850672, "Car": 20781, "Motorcycle": 26539, "Truck": 6235, "รวมต่อวัน": 77878, "คัน/ชั่วโมง": 4017}, {"ที่": 17, "เส้นทาง": "ถ.บ้านกอก", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ถนนบ้านกอก หน้า มอ.ภาค", "Lat": 16.421278, "Lag": 102.811769, "Car": 18968, "Motorcycle": 26533, "Truck": 6181, "รวมต่อวัน": 75154, "คัน/ชั่วโมง": 3876}, {"ที่": 18, "เส้นทาง": "ถ.โนนม่วง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้านอร์ทปาร์ค", "Lat": 16.488596, "Lag": 102.827887, "Car": 21298, "Motorcycle": 21999, "Truck": 3648, "รวมต่อวัน": 68266, "คัน/ชั่วโมง": 3521}, {"ที่": 19, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "หน้าตลาด 62 block", "Lat": 16.457244, "Lag": 102.821138, "Car": 24278, "Motorcycle": 16076, "Truck": 4224, "รวมต่อวัน": 64824, "คัน/ชั่วโมง": 3343}, {"ที่": 20, "text": "ถ.เฉลิมพระเกียรติ", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "โกโฮลเซล ถึงแยกศรีจันทร์", "Lat": 16.435614, "Lag": 102.84325, "Car": 21328, "Motorcycle": 14555, "Truck": 7262, "รวมต่อวัน": 62740, "คัน/ชั่วโมง": 3236}, {"ที่": 21, "เส้นทาง": "ถ.กัลปพฤกษ์ (สีฐาน)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยก BMW ถึงขอนแก่นราม (ปตท กัลปพฤกษ์)", "Lat": 16.437817, "Lag": 102.819208, "Car": 20756, "Motorcycle": 18074, "Truck": 3970, "รวมต่อวัน": 62238, "คัน/ชั่วโมง": 3210}, {"ที่": 22, "เส้นทาง": "ถ.หนองไผ่ (โตโยต้าชัวร์)", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "เจวิลลเลจ หน้า โตโยต้าชัวร์", "Lat": 16.487613, "Lag": 102.833818, "Car": 22264, "Motorcycle": 12938, "Truck": 6829, "รวมต่อวัน": 61120, "คัน/ชั่วโมง": 3152}, {"ที่": 23, "เส้นทาง": "ถ.หลังเมือง", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แถวๆ ชัยมหา", "Lat": 16.430903, "Lag": 102.837651, "Car": 21833, "Motorcycle": 11609, "Truck": 4161, "รวมต่อวัน": 54681, "คัน/ชั่วโมง": 2820}, {"ที่": 24, "เส้นทาง": "ถ.มะลิวัลย์", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "ช่วงแยก ร.8 ถึง ปตท.สีฐาน (โรงเรียนคนตาบอด)", "Lat": 16.444218, "Lag": 102.797482, "Car": 25243, "Motorcycle": 9310, "Truck": 2681, "รวมต่อวัน": 54144, "คัน/ชั่วโมง": 2793}, {"ที่": 25, "เส้นทาง": "ถ.สีหราชเดโชชัย", "ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)": "แยกไฟแดง ถึงหน้าหมู่บ้านแก่นทอง", "Lat": 16.447893, "Lag": 102.794365, "Car": 18913, "Motorcycle": 14150, "Truck": 3672, "รวมต่อวัน": 53419, "คัน/ชั่วโมง": 2755}];
 
     // Populate Sidebar Table
     const tbody = document.getElementById('table-body');
     trafficData.forEach(item => {
+        let routeName = item['เส้นทาง'] || item['text'];
         let tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="rank">${item['ที่']}</td>
             <td>
-                <div style="font-weight:bold">${item['เส้นทาง']}</div>
-                <div style="font-size:0.8rem; color:#94a3b8">${item['ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)']}</div>
+                <div style="font-weight:600; color:var(--text-main);">${routeName}</div>
+                <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">${item['ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)']}</div>
             </td>
             <td style="color:#f97316; font-weight:bold">${item['รวมต่อวัน'].toLocaleString()}</td>
             <td>${item['Car'].toLocaleString()}</td>
@@ -226,81 +247,104 @@
 
     // Initialize Map centered on Khon Kaen
     const map = L.map('map', {
-        center: [16.4322, 102.8236], // Khon Kaen
+        center: [16.4322, 102.8236], 
         zoom: 13,
-        zoomControl: false // move zoom control later if needed
+        zoomControl: true
     });
 
-    // Use CartoDB Dark Matter tile for Smart City look
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // 1. Base Map Layer (CartoDB Dark Matter)
+    const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 19
     }).addTo(map);
 
-    // Add Markers for each sensor location
+    // 2. TomTom Live Traffic Flow Layer
+    const tomtomApiKey = '8oHwI99AzpDA013yabYCuqOfZ4ffAW6t';
+    const tomtomTrafficTiles = L.tileLayer(`https://{s}.api.tomtom.com/traffic/map/4/tile/flow/absolute/{z}/{x}/{y}.png?key=${tomtomApiKey}`, {
+        subdomains: ['a', 'b', 'c', 'd'],
+        maxZoom: 18,
+        opacity: 0.8,
+        attribution: '&copy; TomTom'
+    }).addTo(map); // default ON
+
+    // Add Sensor Markers
+    const sensorLayerGroup = L.layerGroup();
     trafficData.forEach(item => {
+        let routeName = item['เส้นทาง'] || item['text'];
         const marker = L.circleMarker([item.Lat, item.Lag], {
-            radius: 5,
+            radius: 6,
             fillColor: "#00e5ff",
             color: "#fff",
-            weight: 1,
+            weight: 1.5,
             opacity: 1,
             fillOpacity: 0.8
-        }).addTo(map);
+        });
 
         const popupContent = `
-            <div class="popup-title">${item['เส้นทาง']}</div>
+            <div class="popup-title">${routeName}</div>
             <div style="font-size: 0.85rem; margin-bottom:8px; color:#94a3b8">${item['ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)']}</div>
             <div class="popup-data">คัน/ชั่วโมง: <span>${item['คัน/ชั่วโมง'].toLocaleString()}</span></div>
             <div class="popup-data">รวมต่อวัน: <span>${item['รวมต่อวัน'].toLocaleString()}</span></div>
         `;
         marker.bindPopup(popupContent);
+        sensorLayerGroup.addLayer(marker);
     });
+    sensorLayerGroup.addTo(map);
 
-    // Simulated Time curve over 24 hours (multipliers for heatmap intensity)
-    // Night is low, morning rush 7-9, evening rush 16-19
-    const hourlyMultipliers = [
-        0.1, 0.05, 0.05, 0.1, 0.2, // 0-4
-        0.5, 1.2, 1.8, 1.5, 1.0,   // 5-9
-        1.0, 1.2, 1.3, 1.2, 1.0,   // 10-14
-        1.2, 1.8, 2.0, 1.5, 1.0,   // 15-19
-        0.8, 0.6, 0.4, 0.2         // 20-23
-    ];
-
-    let currentHour = 0;
+    // Simulated Traffic Heatmap Setup
     let heatLayer = L.heatLayer([], {
         radius: 35, 
         blur: 25, 
         maxZoom: 14,
         gradient: {0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
-    }).addTo(map);
+    }).addTo(map); // default ON
+
+    // Layer Control Widget (เปิด-ปิด แผนที่จราจรและข้อมูลเลเยอร์ได้ที่นี่)
+    const baseMaps = {
+        "Dark Vector Map": darkTiles
+    };
+    
+    const overlayMaps = {
+        " TomTom Live Traffic": tomtomTrafficTiles,
+        " Simulated Heatmap (24h)": heatLayer,
+        " Sensor Locations": sensorLayerGroup
+    };
+
+    L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
+
+    // Animation Multipliers (24 Hours)
+    const hourlyMultipliers = [
+        0.1, 0.05, 0.05, 0.1, 0.2, 
+        0.5, 1.2, 1.8, 1.5, 1.0,   
+        1.0, 1.2, 1.3, 1.2, 1.0,   
+        1.2, 1.8, 2.0, 1.5, 1.0,   
+        0.8, 0.6, 0.4, 0.2         
+    ];
+
+    let currentHour = 0;
 
     function updateHeatmap(hour) {
         const multiplier = hourlyMultipliers[hour];
         const heatData = trafficData.map(item => {
-            // max intensity roughly derived from max capacity in dataset to normalize 0-1
-            // item['คัน/ชั่วโมง'] is average. We multiply by simulated multiplier.
             let intensity = (item['คัน/ชั่วโมง'] * multiplier) / 10000; 
-            if (intensity > 1) intensity = 1; // cap at 1
+            if (intensity > 1) intensity = 1; 
             return [item.Lat, item.Lag, intensity];
         });
         
         heatLayer.setLatLngs(heatData);
 
-        // Format time display
         const displayHour = hour.toString().padStart(2, '0') + ":00";
         document.getElementById('clock-display').innerText = displayHour;
     }
 
-    // Animation Loop
+    // Animation loop every 1.5 seconds
     setInterval(() => {
         updateHeatmap(currentHour);
         currentHour++;
         if (currentHour > 23) currentHour = 0;
-    }, 1500); // changes every 1.5 seconds
+    }, 1500);
 
-    // initial call
     updateHeatmap(currentHour);
 
 </script>
