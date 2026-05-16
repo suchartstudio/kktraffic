@@ -78,7 +78,7 @@
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
         }
 
-        /* Sidebar table - Expanded to 550px for full view */
+        /* Sidebar table */
         #sidebar {
             width: 650px;
             height: 100%;
@@ -150,7 +150,7 @@
             color: var(--accent);
         }
 
-        /* Custom Smart City Layer Control */
+        /* Custom Layer Control */
         .leaflet-control-layers {
             background: rgba(16, 24, 39, 0.9) !important;
             color: var(--text-main) !important;
@@ -166,7 +166,7 @@
 
         /* Dynamic Digital Traffic Label UI */
         .traffic-label {
-            background: rgba(11, 15, 25, 0.85);
+            background: rgba(11, 15, 25, 0.85); /* พื้นหลังสีเข้มโปร่งแสง ให้มองเห็นบนโหมดสว่างได้ */
             border: 1px solid #00e5ff;
             color: #00e5ff;
             font-family: 'Chakra Petch', sans-serif;
@@ -180,7 +180,6 @@
             transition: all 0.3s ease;
         }
         
-        /* Highlight label when traffic is extremely high */
         .traffic-label.heavy {
             border-color: #ff3d00;
             color: #ff3d00;
@@ -213,7 +212,7 @@
     <div id="map-container">
         <div id="map"></div>
         <div class="time-panel">
-            <h2>Simulation Time</h2>
+            <h2>ช่วงเวลา</h2>
             <div class="clock" id="clock-display">00:00</div>
         </div>
     </div>
@@ -274,14 +273,32 @@
         zoomControl: true
     });
 
-    // 1. Base Map Layer (CartoDB Dark Matter)
+    // ==========================================
+    // 1. Base Maps (แผนที่ฐาน)
+    // ==========================================
+    // Dark Mode (Default)
     const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 19
     }).addTo(map);
 
-    // 2. TomTom Live Traffic Flow Layer
+    // Light Mode (โหมดสว่างปกติ - OpenStreetMap)
+    const lightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    });
+
+    // Satellite Mode (โหมดภาพถ่ายดาวเทียม - Esri World Imagery)
+    const satTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        maxZoom: 19
+    });
+
+    // ==========================================
+    // 2. Overlays (เลเยอร์ซ้อนทับ)
+    // ==========================================
+    // TomTom Live Traffic Flow Layer
     const tomtomApiKey = '8oHwI99AzpDA013yabYCuqOfZ4ffAW6t';
     const tomtomTrafficTiles = L.tileLayer(`https://{s}.api.tomtom.com/traffic/map/4/tile/flow/absolute/{z}/{x}/{y}.png?key=${tomtomApiKey}`, {
         subdomains: ['a', 'b', 'c', 'd'],
@@ -306,7 +323,6 @@
     trafficData.forEach((item, index) => {
         let routeName = item['เส้นทาง'] || item['text'];
         
-        // Setup initial Custom DivIcon
         const customIcon = L.divIcon({
             className: `traffic-label label-id-${index}`,
             html: `${item['คัน/ชั่วโมง'].toLocaleString()} คัน`,
@@ -316,7 +332,6 @@
 
         const marker = L.marker([item.Lat, item.Lag], { icon: customIcon });
 
-        // Bind information popup
         const popupContent = `
             <div class="popup-title">${routeName}</div>
             <div style="font-size: 0.85rem; margin-bottom:8px; color:#94a3b8">${item['ตำแหน่งติดตั้งเครื่องวัด (ตั้งกล้องนับถนนฝั่งเดียว)']}</div>
@@ -327,7 +342,6 @@
         marker.bindPopup(popupContent);
         sensorLayerGroup.addLayer(marker);
 
-        // Save reference for live animation loop updates
         liveMarkers.push({
             markerObject: marker,
             baseHourlyCount: item['คัน/ชั่วโมง'],
@@ -336,20 +350,28 @@
     });
     sensorLayerGroup.addTo(map);
 
-    // Layer Control Widget
+    // ==========================================
+    // 3. Layer Control Setup
+    // ==========================================
     const baseMaps = {
-        "Dark Vector Map": darkTiles
+        "🗺️ Dark Mode (มืด)": darkTiles,
+        "🗺️ Light Mode (สว่าง)": lightTiles,
+        "🌍 Satellite (ดาวเทียม)": satTiles
     };
     
     const overlayMaps = {
-        " TomTom Live Traffic": tomtomTrafficTiles,
-        " Simulated Heatmap (24h)": heatLayer,
-        " Live Traffic Numbers": sensorLayerGroup
+        "🔴 TomTom Live Traffic": tomtomTrafficTiles,
+        "🔥 Simulated Heatmap (24h)": heatLayer,
+        "🔢 Live Traffic Numbers": sensorLayerGroup
     };
 
+    // Add Layer Control widget to top right
     L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
 
-    // Animation Multipliers (24 Hours Traffic Flow Curve)
+    // ==========================================
+    // 4. Animation Logic
+    // ==========================================
+    // 24 Hours Traffic Flow Curve
     const hourlyMultipliers = [
         0.15, 0.08, 0.05, 0.1, 0.25, 
         0.55, 1.25, 1.85, 1.55, 1.05,   
@@ -363,7 +385,7 @@
     function updateSimulation(hour) {
         const multiplier = hourlyMultipliers[hour];
         
-        // 1. Update Heatmap Layer
+        // Update Heatmap
         const heatData = trafficData.map(item => {
             let intensity = (item['คัน/ชั่วโมง'] * multiplier) / 10000; 
             if (intensity > 1) intensity = 1; 
@@ -371,15 +393,13 @@
         });
         heatLayer.setLatLngs(heatData);
 
-        // 2. Update Live Counter Numbers on Map Icons
+        // Update Live Counters
         liveMarkers.forEach(liveItem => {
-            // Calculate simulated current traffic for this hour
             const currentTraffic = Math.round(liveItem.baseHourlyCount * multiplier);
             
-            // Generate dynamic HTML and adjust style classes based on traffic load
             let trafficClass = "traffic-label";
             if (multiplier >= 1.7) { 
-                trafficClass += " heavy"; // changes border/glow to red during rush hours
+                trafficClass += " heavy"; 
             }
 
             const updatedIcon = L.divIcon({
@@ -389,10 +409,8 @@
                 iconAnchor: [32, 10]
             });
             
-            // Set the new icon on the active map marker
             liveItem.markerObject.setIcon(updatedIcon);
 
-            // Dynamic popup value update if it is currently open
             if(liveItem.markerObject.isPopupOpen()) {
                 const livePopupValEl = document.getElementById(`popup-live-val-${liveItem.index}`);
                 if(livePopupValEl) {
@@ -401,19 +419,17 @@
             }
         });
 
-        // 3. Update Clock Display Panel
+        // Update Clock
         const displayHour = hour.toString().padStart(2, '0') + ":00";
         document.getElementById('clock-display').innerText = displayHour;
     }
 
-    // Animation loop triggers simulation update every 1.5 seconds
     setInterval(() => {
         updateSimulation(currentHour);
         currentHour++;
         if (currentHour > 23) currentHour = 0;
     }, 1500);
 
-    // Initial load call
     updateSimulation(currentHour);
 
 </script>
